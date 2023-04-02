@@ -1,10 +1,12 @@
-trait Info<'a> {
+trait Info {
     fn name(&self) -> &str;
 }
 
-trait InfoProvider<'a> {
-    type Item: Info<'a>;
-    fn info(&'a self) -> Self::Item;
+trait InfoProvider {
+    type Item<'a>: Info + 'a
+    where
+        Self: 'a;
+    fn info<'a>(&'a self) -> Self::Item<'a>;
 }
 
 struct Thing {
@@ -15,16 +17,16 @@ struct ThingInfo<'a> {
     thing: &'a Thing,
 }
 
-impl Info<'_> for ThingInfo<'_> {
+impl Info for ThingInfo<'_> {
     fn name(&self) -> &str {
         &self.thing.name
     }
 }
 
-impl<'a> InfoProvider<'a> for Thing {
-    type Item = ThingInfo<'a>;
+impl InfoProvider for Thing {
+    type Item<'a> = ThingInfo<'a>;
 
-    fn info(&'a self) -> Self::Item {
+    fn info<'a>(&'a self) -> Self::Item<'a> {
         ThingInfo { thing: self }
     }
 }
@@ -32,14 +34,14 @@ impl<'a> InfoProvider<'a> for Thing {
 struct UnassociatedThing;
 struct UnassociatedThingInfo;
 
-impl InfoProvider<'_> for UnassociatedThing {
-    type Item = UnassociatedThingInfo;
+impl InfoProvider for UnassociatedThing {
+    type Item<'a> = UnassociatedThingInfo;
 
-    fn info(&'_ self) -> Self::Item {
+    fn info(&self) -> Self::Item<'_> {
         UnassociatedThingInfo {}
     }
 }
-impl Info<'_> for UnassociatedThingInfo {
+impl Info for UnassociatedThingInfo {
     fn name(&self) -> &str {
         "Hello World"
     }
@@ -62,11 +64,27 @@ mod tests {
 
     fn generic_use_of_info<'a, IP>(obj: &'a IP) -> String
     where
-        IP: InfoProvider<'a>,
+        IP: InfoProvider,
     {
         let info = obj.info();
         info.name().into()
     }
+
+    // fn get_info<'a, IP>(obj: &'a IP) -> impl Info + 'a
+    // where
+    //     IP: InfoProvider<'a>,
+    // {
+    //     obj.info()
+    // }
+
+    // #[test]
+    // fn does_not_compile() {
+    //     let info = {
+    //         let obj = UnassociatedThing {  };
+    //         get_info(&obj)
+    //     };
+    //     assert_eq!(info.name(),"John");
+    // }
 
     #[test]
     fn test_generic_use_of_info() {
